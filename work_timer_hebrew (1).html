@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>שעון זמן לעבודות</title>
+<style>
+  :root{
+    --bg:#f5f7fb;--card:#ffffff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;
+    --primary:#2563eb;--primary2:#1d4ed8;--danger:#dc2626;--success:#059669;--warning:#d97706;
+    --shadow:0 8px 30px rgba(0,0,0,.06);
+  }
+  body.dark{
+    --bg:#111827;--card:#1f2937;--text:#f9fafb;--muted:#9ca3af;--line:#374151;
+    --primary:#3b82f6;--primary2:#60a5fa;--shadow:0 8px 30px rgba(0,0,0,.25);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,"Heebo",sans-serif;background:var(--bg);color:var(--text)}
+  header{position:sticky;top:0;z-index:50;background:var(--card);border-bottom:1px solid var(--line);padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:20px;margin:0}
+  nav{display:flex;gap:8px;flex-wrap:wrap}
+  nav button{border:0;background:transparent;color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer}
+  nav button.active, nav button:hover{background:rgba(37,99,235,.1);color:var(--primary)}
+  .container{max-width:1200px;margin:auto;padding:18px}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+  .span-12{grid-column:span 12}.span-8{grid-column:span 8}.span-6{grid-column:span 6}.span-4{grid-column:span 4}.span-3{grid-column:span 3}
+  @media(max-width:850px){.span-8,.span-6,.span-4,.span-3{grid-column:span 12}header{align-items:flex-start;gap:10px;flex-direction:column}}
+  h2,h3{margin-top:0}.muted{color:var(--muted)}
+  .timer{font-size:54px;font-weight:700;text-align:center;letter-spacing:1px;margin:20px 0}
+  .timer-title{text-align:center;color:var(--muted);min-height:24px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row>*{flex:1}
+  input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px}
+  textarea{min-height:80px;resize:vertical}
+  button.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-weight:700}
+  .primary{background:var(--primary);color:white}.primary:hover{background:var(--primary2)}
+  .secondary{background:#e5e7eb;color:#111827}.danger{background:var(--danger);color:#fff}.success{background:var(--success);color:#fff}.warning{background:var(--warning);color:#fff}
+  body.dark .secondary{background:#374151;color:#fff}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:750px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{padding:14px;background:var(--bg);border-radius:12px}
+  .stat strong{display:block;font-size:24px;margin-top:5px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+  th{color:var(--muted);font-weight:700}
+  .table-wrap{overflow:auto}
+  .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px}
+  .badge.unpaid{background:#fef3c7;color:#92400e}.badge.pending{background:#dbeafe;color:#1e40af}.badge.paid{background:#d1fae5;color:#065f46}
+  .hidden{display:none!important}
+  .section{display:none}.section.active{display:block}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar>*{flex:1 1 160px}
+  .small{font-size:12px}
+  .actions{display:flex;gap:6px;flex-wrap:wrap}
+  .actions button{padding:6px 8px;border:0;border-radius:8px;cursor:pointer}
+  .toast{position:fixed;left:20px;bottom:20px;background:#111827;color:#fff;padding:12px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:100}
+  .toast.show{opacity:1}
+  .quick-links{display:flex;gap:8px;flex-wrap:wrap}
+  .quick-links button{padding:8px 10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:9px;cursor:pointer}
+  .chart{height:180px;display:flex;align-items:flex-end;gap:8px;padding:12px 0}
+  .bar{flex:1;background:var(--primary);border-radius:8px 8px 0 0;min-width:18px;position:relative}
+  .bar span{position:absolute;bottom:100%;font-size:11px;right:50%;transform:translateX(50%);white-space:nowrap}
+  .bar-label{font-size:11px;text-align:center;margin-top:4px;color:var(--muted)}
+  .chart-item{flex:1;min-width:38px}
+  .footer-note{text-align:center;color:var(--muted);font-size:12px;padding:18px}
+</style>
+</head>
+<body>
+<header>
+  <h1>שעון זמן לעבודות</h1>
+  <nav id="nav">
+    <button data-target="home" class="active">ראשי</button>
+    <button data-target="history">היסטוריה</button>
+    <button data-target="clients">לקוחות</button>
+    <button data-target="projects">פרויקטים</button>
+    <button data-target="reports">דוחות</button>
+    <button data-target="settings">הגדרות</button>
+  </nav>
+</header>
+
+<div class="container">
+  <section id="home" class="section active">
+    <div class="grid">
+      <div class="card span-8">
+        <h2>שעון עבודה</h2>
+        <div class="timer-title" id="activeWorkLabel">אין עבודה פעילה</div>
+        <div class="timer" id="timer">00:00:00</div>
+        <div class="row">
+          <select id="timerClient"></select>
+          <select id="timerProject"></select>
+        </div>
+        <div style="height:10px"></div>
+        <div class="row">
+          <button class="btn primary" id="startBtn">התחל עבודה</button>
+          <button class="btn warning" id="pauseBtn" disabled>השהה</button>
+          <button class="btn success" id="resumeBtn" disabled>המשך</button>
+          <button class="btn danger" id="stopBtn" disabled>סיים עבודה</button>
+        </div>
+        <div style="height:10px"></div>
+        <textarea id="timerNote" placeholder="הערה לעבודה..."></textarea>
+      </div>
+
+      <div class="card span-4">
+        <h3>סיכום</h3>
+        <div class="stats">
+          <div class="stat"><span class="muted">היום</span><strong id="todayHours">0:00</strong></div>
+          <div class="stat"><span class="muted">השבוע</span><strong id="weekHours">0:00</strong></div>
+          <div class="stat"><span class="muted">החודש</span><strong id="monthHours">0:00</strong></div>
+          <div class="stat"><span class="muted">הכנסה החודש</span><strong id="monthIncome">₪0</strong></div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+        <div class="quick-links">
+          <button id="quickWorkBtn">עבודה מהירה</button>
+          <button id="manualWorkBtn">הוספה ידנית</button>
+          <button id="darkBtn">מצב כהה/בהיר</button>
+        </div>
+      </div>
+
+      <div class="card span-12">
+        <h3>עבודות אחרונות</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>תאריך</th><th>לקוח</th><th>פרויקט</th><th>משך</th><th>סכום</th><th>פעולות</th></tr></thead>
+          <tbody id="recentTable"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="history" class="section">
+    <div class="card">
+      <h2>היסטוריית עבודות</h2>
+      <div class="toolbar">
+        <input id="searchHistory" placeholder="חיפוש לפי לקוח / פרויקט / הערה">
+        <select id="filterClient"></select>
+        <input type="date" id="filterFrom">
+        <input type="date" id="filterTo">
+        <select id="filterStatus">
+          <option value="">כל הסטטוסים</option>
+          <option value="unpaid">לא חויב</option>
+          <option value="pending">ממתין לתשלום</option>
+          <option value="paid">שולם</option>
+        </select>
+        <button class="btn secondary" id="exportCsvBtn">ייצוא CSV</button>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>תאריך</th><th>לקוח</th><th>פרויקט</th><th>התחלה</th><th>סיום</th><th>משך</th><th>תעריף</th><th>סכום</th><th>סטטוס</th><th>הערה</th><th>פעולות</th></tr></thead>
+        <tbody id="historyTable"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section id="clients" class="section">
+    <div class="grid">
+      <div class="card span-4">
+        <h2>לקוח חדש</h2>
+        <input id="clientName" placeholder="שם לקוח">
+        <div style="height:8px"></div>
+        <input id="clientPhone" placeholder="טלפון">
+        <div style="height:8px"></div>
+        <input id="clientEmail" placeholder="אימייל">
+        <div style="height:8px"></div>
+        <input id="clientRate" type="number" min="0" step="1" placeholder="תעריף לשעה">
+        <div style="height:8px"></div>
+        <textarea id="clientNotes" placeholder="הערות"></textarea>
+        <button class="btn primary" id="addClientBtn">הוסף לקוח</button>
+      </div>
+      <div class="card span-8">
+        <h2>לקוחות</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>שם</th><th>טלפון</th><th>תעריף</th><th>שעות</th><th>לתשלום</th><th>פעולות</th></tr></thead>
+          <tbody id="clientsTable"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects" class="section">
+    <div class="grid">
+      <div class="card span-4">
+        <h2>פרויקט חדש</h2>
+        <select id="projectClient"></select>
+        <div style="height:8px"></div>
+        <input id="projectName" placeholder="שם פרויקט">
+        <div style="height:8px"></div>
+        <input id="projectRate" type="number" min="0" placeholder="תעריף לשעה (רשות)">
+        <div style="height:8px"></div>
+        <select id="projectStatus">
+          <option value="active">פעיל</option>
+          <option value="waiting">בהמתנה</option>
+          <option value="done">הושלם</option>
+        </select>
+        <div style="height:8px"></div>
+        <textarea id="projectDesc" placeholder="תיאור"></textarea>
+        <button class="btn primary" id="addProjectBtn">הוסף פרויקט</button>
+      </div>
+      <div class="card span-8">
+        <h2>פרויקטים</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>פרויקט</th><th>לקוח</th><th>סטטוס</th><th>תעריף</th><th>שעות</th><th>סכום</th><th>פעולות</th></tr></thead>
+          <tbody id="projectsTable"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="reports" class="section">
+    <div class="grid">
+      <div class="card span-12">
+        <h2>דוחות</h2>
+        <div class="toolbar">
+          <input type="month" id="reportMonth">
+          <button class="btn primary" id="refreshReportBtn">הצג דוח</button>
+          <button class="btn secondary" onclick="window.print()">הדפס</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="muted">סה"כ שעות</span><strong id="reportHours">0:00</strong></div>
+          <div class="stat"><span class="muted">סה"כ הכנסות</span><strong id="reportIncome">₪0</strong></div>
+          <div class="stat"><span class="muted">עבודות</span><strong id="reportCount">0</strong></div>
+          <div class="stat"><span class="muted">ממתין לתשלום</span><strong id="reportUnpaid">₪0</strong></div>
+        </div>
+      </div>
+      <div class="card span-6">
+        <h3>שעות לפי ימים</h3>
+        <div class="chart" id="daysChart"></div>
+      </div>
+      <div class="card span-6">
+        <h3>שעות לפי לקוחות</h3>
+        <div class="chart" id="clientsChart"></div>
+      </div>
+      <div class="card span-12">
+        <h3>סיכום לפי לקוח</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>לקוח</th><th>שעות</th><th>סכום</th><th>שולם</th><th>יתרה</th></tr></thead>
+          <tbody id="reportTable"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="settings" class="section">
+    <div class="grid">
+      <div class="card span-6">
+        <h2>הגדרות</h2>
+        <label>שם העסק</label>
+        <input id="businessName">
+        <div style="height:8px"></div>
+        <label>תעריף ברירת מחדל לשעה</label>
+        <input id="defaultRate" type="number" min="0">
+        <div style="height:8px"></div>
+        <label>עיגול זמן</label>
+        <select id="roundMinutes">
+          <option value="1">ללא עיגול מיוחד</option>
+          <option value="5">5 דקות</option>
+          <option value="10">10 דקות</option>
+          <option value="15">15 דקות</option>
+          <option value="30">30 דקות</option>
+        </select>
+        <div style="height:10px"></div>
+        <button class="btn primary" id="saveSettingsBtn">שמור הגדרות</button>
+      </div>
+      <div class="card span-6">
+        <h2>גיבוי ושחזור</h2>
+        <p class="muted">אפשר לייצא את כל הנתונים לקובץ JSON ולהחזיר אותם במחשב אחר.</p>
+        <button class="btn secondary" id="backupBtn">ייצוא גיבוי</button>
+        <input type="file" id="restoreInput" accept=".json" style="margin-top:10px">
+        <div style="height:10px"></div>
+        <button class="btn danger" id="clearAllBtn">מחיקת כל הנתונים</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="footer-note">הנתונים נשמרים בדפדפן המקומי במכשיר זה.</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY="workTimerApp_v1";
+let db = loadData();
+let timerInterval=null;
+
+function defaultDB(){
+  return {
+    clients:[],
+    projects:[],
+    works:[],
+    active:null,
+    settings:{businessName:"העסק שלי",defaultRate:120,roundMinutes:1,dark:false}
+  };
+}
+function loadData(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    return raw?Object.assign(defaultDB(),JSON.parse(raw)):defaultDB();
+  }catch(e){return defaultDB();}
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+function money(n){return "₪"+Number(n||0).toLocaleString("he-IL",{maximumFractionDigits:2});}
+function pad(n){return String(n).padStart(2,"0");}
+function fmtDuration(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+function fmtHM(sec){
+  sec=Math.max(0,Math.round(sec));
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);
+  return `${h}:${pad(m)}`;
+}
+function localDate(ts=Date.now()){
+  const d=new Date(ts);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function dateTime(ts){
+  const d=new Date(ts);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function toast(msg){
+  const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),1800);
+}
+function getClient(id){return db.clients.find(x=>x.id===id);}
+function getProject(id){return db.projects.find(x=>x.id===id);}
+function rateFor(clientId,projectId,override){
+  if(Number(override)>0)return Number(override);
+  const p=getProject(projectId); if(p&&Number(p.rate)>0)return Number(p.rate);
+  const c=getClient(clientId); if(c&&Number(c.rate)>0)return Number(c.rate);
+  return Number(db.settings.defaultRate||0);
+}
+function roundSeconds(sec){
+  const r=Number(db.settings.roundMinutes||1);
+  if(r<=1)return sec;
+  return Math.ceil(sec/(r*60))*(r*60);
+}
+function effectiveActiveSeconds(){
+  const a=db.active;if(!a)return 0;
+  let total=a.elapsed||0;
+  if(!a.paused && a.startedAt) total += (Date.now()-a.startedAt)/1000;
+  return total;
+}
+
+function populateSelects(){
+  const clientOptions='<option value="">בחר לקוח</option>'+db.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");
+  ["timerClient","filterClient","projectClient"].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    const old=el.value; el.innerHTML=clientOptions; if([...el.options].some(o=>o.value===old))el.value=old;
+  });
+  updateProjectSelect();
+}
+function updateProjectSelect(){
+  const sel=document.getElementById("timerProject");
+  const cid=document.getElementById("timerClient").value;
+  const items=db.projects.filter(p=>!cid||p.clientId===cid);
+  const old=sel.value;
+  sel.innerHTML='<option value="">ללא פרויקט</option>'+items.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+  if([...sel.options].some(o=>o.value===old))sel.value=old;
+}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+
+function renderTimer(){
+  const a=db.active;
+  const label=document.getElementById("activeWorkLabel");
+  const start=document.getElementById("startBtn"),pause=document.getElementById("pauseBtn"),resume=document.getElementById("resumeBtn"),stop=document.getElementById("stopBtn");
+  if(!a){
+    label.textContent="אין עבודה פעילה";document.getElementById("timer").textContent="00:00:00";
+    start.disabled=false;pause.disabled=true;resume.disabled=true;stop.disabled=true;return;
+  }
+  const c=getClient(a.clientId),p=getProject(a.projectId);
+  label.textContent=`${c?c.name:"עבודה מהירה"}${p?" • "+p.name:""}`;
+  document.getElementById("timer").textContent=fmtDuration(effectiveActiveSeconds());
+  start.disabled=true;stop.disabled=false;pause.disabled=!!a.paused;resume.disabled=!a.paused;
+}
+function startWork(quick=false){
+  if(db.active){toast("יש כבר עבודה פעילה");return;}
+  const clientId=quick?"":document.getElementById("timerClient").value;
+  const projectId=quick?"":document.getElementById("timerProject").value;
+  db.active={id:uid(),clientId,projectId,note:"",startedOriginal:Date.now(),startedAt:Date.now(),elapsed:0,paused:false};
+  document.getElementById("timerNote").value="";
+  save();renderTimer();toast("העבודה התחילה");
+}
+function pauseWork(){
+  const a=db.active;if(!a||a.paused)return;
+  a.elapsed += (Date.now()-a.startedAt)/1000;a.paused=true;a.startedAt=null;save();renderTimer();toast("הטיימר הושהה");
+}
+function resumeWork(){
+  const a=db.active;if(!a||!a.paused)return;
+  a.paused=false;a.startedAt=Date.now();save();renderTimer();toast("הטיימר ממשיך");
+}
+function stopWork(){
+  const a=db.active;if(!a)return;
+  const sec=roundSeconds(effectiveActiveSeconds());
+  const end=Date.now();
+  const rate=rateFor(a.clientId,a.projectId);
+  db.works.unshift({
+    id:uid(),clientId:a.clientId,projectId:a.projectId,
+    start:a.startedOriginal,end,duration:sec,rate,amount:sec/3600*rate,
+    note:document.getElementById("timerNote").value||"",status:"unpaid"
+  });
+  db.active=null;save();renderAll();toast("העבודה נשמרה");
+}
+function addManualWork(){
+  const clientId=prompt("הדבק/כתוב שם לקוח קיים (או השאר ריק):","")||"";
+  let c=db.clients.find(x=>x.name===clientId);
+  const startStr=prompt("שעת התחלה, למשל 09:00","09:00"); if(!startStr)return;
+  const endStr=prompt("שעת סיום, למשל 11:30","11:30"); if(!endStr)return;
+  const day=localDate();
+  const s=new Date(day+"T"+startStr+":00").getTime(),e=new Date(day+"T"+endStr+":00").getTime();
+  if(!isFinite(s)||!isFinite(e)||e<=s){alert("שעות לא תקינות");return;}
+  const sec=roundSeconds((e-s)/1000),rate=rateFor(c?.id||"","");
+  db.works.unshift({id:uid(),clientId:c?.id||"",projectId:"",start:s,end:e,duration:sec,rate,amount:sec/3600*rate,note:"עבודה ידנית",status:"unpaid"});
+  save();renderAll();toast("העבודה הידנית נוספה");
+}
+
+function addClient(){
+  const name=document.getElementById("clientName").value.trim(); if(!name){alert("יש להזין שם לקוח");return;}
+  db.clients.push({id:uid(),name,phone:clientPhone.value.trim(),email:clientEmail.value.trim(),rate:Number(clientRate.value||0),notes:clientNotes.value.trim()});
+  ["clientName","clientPhone","clientEmail","clientRate","clientNotes"].forEach(id=>document.getElementById(id).value="");
+  save();renderAll();toast("הלקוח נוסף");
+}
+function addProject(){
+  const clientId=projectClient.value,name=projectName.value.trim(); if(!clientId||!name){alert("יש לבחור לקוח ולהזין שם פרויקט");return;}
+  db.projects.push({id:uid(),clientId,name,rate:Number(projectRate.value||0),status:projectStatus.value,desc:projectDesc.value.trim()});
+  ["projectName","projectRate","projectDesc"].forEach(id=>document.getElementById(id).value="");
+  save();renderAll();toast("הפרויקט נוסף");
+}
+function deleteClient(id){
+  if(!confirm("למחוק את הלקוח? הרשומות ההיסטוריות יישארו ללא שם לקוח."))return;
+  db.clients=db.clients.filter(x=>x.id!==id);db.projects=db.projects.filter(x=>x.clientId!==id);save();renderAll();toast("הלקוח נמחק");
+}
+function deleteProject(id){
+  if(!confirm("למחוק את הפרויקט?"))return;
+  db.projects=db.projects.filter(x=>x.id!==id);save();renderAll();toast("הפרויקט נמחק");
+}
+function deleteWork(id){
+  if(!confirm("למחוק את העבודה?"))return;
+  db.works=db.works.filter(x=>x.id!==id);save();renderAll();toast("העבודה נמחקה");
+}
+function repeatWork(id){
+  const w=db.works.find(x=>x.id===id);if(!w)return;
+  if(db.active){alert("יש עבודה פעילה");return;}
+  db.active={id:uid(),clientId:w.clientId,projectId:w.projectId,note:"",startedOriginal:Date.now(),startedAt:Date.now(),elapsed:0,paused:false};
+  save();showSection("home");renderAll();toast("התחלת עבודה דומה");
+}
+function setWorkStatus(id,val){const w=db.works.find(x=>x.id===id);if(w){w.status=val;save();renderAll();}}
+function editWork(id){
+  const w=db.works.find(x=>x.id===id);if(!w)return;
+  const note=prompt("עריכת הערה",w.note||""); if(note===null)return;
+  const rate=prompt("תעריף לשעה",w.rate); if(rate===null)return;
+  w.note=note;w.rate=Number(rate||0);w.amount=w.duration/3600*w.rate;save();renderAll();toast("הרשומה עודכנה");
+}
+
+function renderTables(){
+  const recent=document.getElementById("recentTable");
+  recent.innerHTML=db.works.slice(0,7).map(w=>workRowShort(w)).join("")||'<tr><td colspan="6" class="muted">אין עבודות עדיין</td></tr>';
+
+  const q=searchHistory.value.trim().toLowerCase(),fc=filterClient.value,ff=filterFrom.value,ft=filterTo.value,fs=filterStatus.value;
+  const filtered=db.works.filter(w=>{
+    const c=getClient(w.clientId)?.name||"",p=getProject(w.projectId)?.name||"",txt=(c+" "+p+" "+(w.note||"")).toLowerCase(),d=localDate(w.start);
+    return (!q||txt.includes(q))&&(!fc||w.clientId===fc)&&(!ff||d>=ff)&&(!ft||d<=ft)&&(!fs||w.status===fs);
+  });
+  historyTable.innerHTML=filtered.map(w=>workRowFull(w)).join("")||'<tr><td colspan="11" class="muted">לא נמצאו רשומות</td></tr>';
+
+  clientsTable.innerHTML=db.clients.map(c=>{
+    const ws=db.works.filter(w=>w.clientId===c.id),sec=sum(ws,x=>x.duration),amt=sum(ws,x=>x.amount);
+    return `<tr><td>${esc(c.name)}</td><td>${esc(c.phone||"")}</td><td>${money(c.rate)}</td><td>${fmtHM(sec)}</td><td>${money(amt)}</td><td><button onclick="deleteClient('${c.id}')" class="danger">מחק</button></td></tr>`;
+  }).join("")||'<tr><td colspan="6" class="muted">אין לקוחות</td></tr>';
+
+  projectsTable.innerHTML=db.projects.map(p=>{
+    const ws=db.works.filter(w=>w.projectId===p.id),sec=sum(ws,x=>x.duration),amt=sum(ws,x=>x.amount),c=getClient(p.clientId);
+    const status={active:"פעיל",waiting:"בהמתנה",done:"הושלם"}[p.status]||p.status;
+    return `<tr><td>${esc(p.name)}</td><td>${esc(c?.name||"")}</td><td>${status}</td><td>${money(rateFor(p.clientId,p.id))}</td><td>${fmtHM(sec)}</td><td>${money(amt)}</td><td><button onclick="deleteProject('${p.id}')" class="danger">מחק</button></td></tr>`;
+  }).join("")||'<tr><td colspan="7" class="muted">אין פרויקטים</td></tr>';
+}
+function workRowShort(w){
+  const c=getClient(w.clientId),p=getProject(w.projectId);
+  return `<tr><td>${localDate(w.start)}</td><td>${esc(c?.name||"עבודה מהירה")}</td><td>${esc(p?.name||"-")}</td><td>${fmtHM(w.duration)}</td><td>${money(w.amount)}</td><td class="actions"><button onclick="repeatWork('${w.id}')">התחל שוב</button><button onclick="editWork('${w.id}')">ערוך</button></td></tr>`;
+}
+function workRowFull(w){
+  const c=getClient(w.clientId),p=getProject(w.projectId);
+  const cls=w.status==="paid"?"paid":w.status==="pending"?"pending":"unpaid";
+  return `<tr>
+  <td>${localDate(w.start)}</td><td>${esc(c?.name||"עבודה מהירה")}</td><td>${esc(p?.name||"-")}</td>
+  <td>${dateTime(w.start)}</td><td>${dateTime(w.end)}</td><td>${fmtHM(w.duration)}</td>
+  <td>${money(w.rate)}</td><td>${money(w.amount)}</td>
+  <td><select onchange="setWorkStatus('${w.id}',this.value)">
+    <option value="unpaid" ${w.status==="unpaid"?"selected":""}>לא חויב</option>
+    <option value="pending" ${w.status==="pending"?"selected":""}>ממתין</option>
+    <option value="paid" ${w.status==="paid"?"selected":""}>שולם</option>
+  </select></td>
+  <td>${esc(w.note||"")}</td>
+  <td class="actions"><button onclick="editWork('${w.id}')">ערוך</button><button onclick="repeatWork('${w.id}')">התחל שוב</button><button onclick="deleteWork('${w.id}')" class="danger">מחק</button></td></tr>`;
+}
+function sum(arr,fn){return arr.reduce((a,x)=>a+Number(fn(x)||0),0);}
+
+function renderStats(){
+  const now=new Date(),today=localDate(),mStart=`${now.getFullYear()}-${pad(now.getMonth()+1)}-01`;
+  const dayOfWeek=(now.getDay()+6)%7; const ws=new Date(now);ws.setDate(now.getDate()-dayOfWeek);ws.setHours(0,0,0,0);
+  const todayW=db.works.filter(w=>localDate(w.start)===today);
+  const weekW=db.works.filter(w=>w.start>=ws.getTime());
+  const monthW=db.works.filter(w=>localDate(w.start)>=mStart);
+  todayHours.textContent=fmtHM(sum(todayW,x=>x.duration));
+  weekHours.textContent=fmtHM(sum(weekW,x=>x.duration));
+  monthHours.textContent=fmtHM(sum(monthW,x=>x.duration));
+  monthIncome.textContent=money(sum(monthW,x=>x.amount));
+}
+function renderReport(){
+  const val=reportMonth.value||localDate().slice(0,7);reportMonth.value=val;
+  const ws=db.works.filter(w=>localDate(w.start).startsWith(val));
+  reportHours.textContent=fmtHM(sum(ws,x=>x.duration));
+  reportIncome.textContent=money(sum(ws,x=>x.amount));
+  reportCount.textContent=ws.length;
+  reportUnpaid.textContent=money(sum(ws.filter(w=>w.status!=="paid"),x=>x.amount));
+  const groups={};
+  ws.forEach(w=>{const n=getClient(w.clientId)?.name||"עבודה מהירה";groups[n]??={sec:0,amt:0,paid:0};groups[n].sec+=w.duration;groups[n].amt+=w.amount;if(w.status==="paid")groups[n].paid+=w.amount;});
+  reportTable.innerHTML=Object.entries(groups).map(([n,g])=>`<tr><td>${esc(n)}</td><td>${fmtHM(g.sec)}</td><td>${money(g.amt)}</td><td>${money(g.paid)}</td><td>${money(g.amt-g.paid)}</td></tr>`).join("")||'<tr><td colspan="5" class="muted">אין נתונים לחודש זה</td></tr>';
+  drawCharts(ws);
+}
+function drawCharts(ws){
+  const days={};ws.forEach(w=>{const d=localDate(w.start).slice(8);days[d]=(days[d]||0)+w.duration/3600;});
+  renderBarChart(daysChart,days);
+  const cs={};ws.forEach(w=>{const n=getClient(w.clientId)?.name||"מהיר";cs[n]=(cs[n]||0)+w.duration/3600;});
+  renderBarChart(clientsChart,cs);
+}
+function renderBarChart(el,obj){
+  const entries=Object.entries(obj).slice(0,12),max=Math.max(1,...entries.map(x=>x[1]));
+  el.innerHTML=entries.map(([k,v])=>`<div class="chart-item"><div class="bar" style="height:${Math.max(8,v/max*140)}px"><span>${v.toFixed(1)}</span></div><div class="bar-label">${esc(k)}</div></div>`).join("")||'<div class="muted">אין נתונים</div>';
+}
+function renderAll(){populateSelects();renderTimer();renderTables();renderStats();renderReport();applySettings();}
+
+function showSection(id){
+  document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.target===id));
+}
+document.getElementById("nav").addEventListener("click",e=>{if(e.target.dataset.target)showSection(e.target.dataset.target);});
+timerClient.addEventListener("change",updateProjectSelect);
+startBtn.onclick=()=>startWork(false);pauseBtn.onclick=pauseWork;resumeBtn.onclick=resumeWork;stopBtn.onclick=stopWork;quickWorkBtn.onclick=()=>startWork(true);manualWorkBtn.onclick=addManualWork;
+addClientBtn.onclick=addClient;addProjectBtn.onclick=addProject;
+[searchHistory,filterClient,filterFrom,filterTo,filterStatus].forEach(el=>el.addEventListener("input",renderTables));
+refreshReportBtn.onclick=renderReport;
+
+function exportCSV(){
+  const rows=[["תאריך","לקוח","פרויקט","התחלה","סיום","משך שעות","תעריף","סכום","סטטוס","הערה"]];
+  db.works.forEach(w=>rows.push([localDate(w.start),getClient(w.clientId)?.name||"",getProject(w.projectId)?.name||"",dateTime(w.start),dateTime(w.end),(w.duration/3600).toFixed(2),w.rate,w.amount.toFixed(2),w.status,w.note||""]));
+  const csv="\uFEFF"+rows.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+  downloadBlob(csv,"work-report.csv","text/csv;charset=utf-8");
+}
+exportCsvBtn.onclick=exportCSV;
+function downloadBlob(content,name,type){
+  const blob=new Blob([content],{type}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);
+}
+backupBtn.onclick=()=>downloadBlob(JSON.stringify(db,null,2),"work-timer-backup.json","application/json");
+restoreInput.onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{const data=JSON.parse(await f.text());db=Object.assign(defaultDB(),data);save();renderAll();toast("הגיבוי שוחזר");}catch(err){alert("קובץ גיבוי לא תקין");}
+}
+clearAllBtn.onclick=()=>{
+  if(confirm("למחוק את כל הנתונים? אין אפשרות לבטל ללא גיבוי.")){db=defaultDB();save();renderAll();toast("כל הנתונים נמחקו");}
+}
+function applySettings(){
+  businessName.value=db.settings.businessName||"";
+  defaultRate.value=db.settings.defaultRate||0;
+  roundMinutes.value=String(db.settings.roundMinutes||1);
+  document.body.classList.toggle("dark",!!db.settings.dark);
+  document.title=(db.settings.businessName?db.settings.businessName+" - ":"")+"שעון זמן לעבודות";
+}
+saveSettingsBtn.onclick=()=>{
+  db.settings.businessName=businessName.value.trim();
+  db.settings.defaultRate=Number(defaultRate.value||0);
+  db.settings.roundMinutes=Number(roundMinutes.value||1);
+  save();applySettings();toast("ההגדרות נשמרו");
+}
+darkBtn.onclick=()=>{db.settings.dark=!db.settings.dark;save();applySettings();}
+
+setInterval(()=>{if(db.active)renderTimer();},1000);
+renderAll();
+</script>
+</body>
+</html>
+
+<!-- Injection By NetFree -->
+<script src="https://netfree.link/injection-script/note-in-site.js" type="text/javascript" async  id="netfree-note-site" jsondata="%7B%22noteSite%22:%22%D7%9B%D7%93%D7%99%20%D7%A9%D7%94%D7%AA%D7%9E%D7%95%D7%A0%D7%95%D7%AA%20%D7%91%D7%90%D7%AA%D7%A8%20%D7%94%D7%96%D7%94%20%D7%99%D7%97%D7%96%D7%A8%D7%95%20%D7%9E%D7%91%D7%93%D7%99%D7%A7%D7%94%2C%20%D7%99%D7%A9%20%D7%9C%D7%94%D7%92%D7%93%D7%99%D7%A8%20%5C%22%D7%90%D7%A4%D7%A9%D7%A8%20%D7%9C%D7%A1%D7%A0%D7%9F%20%D7%AA%D7%95%D7%9B%D7%9F%20%D7%A9%D7%99%D7%93%D7%95%D7%A2%20%D7%9B%D7%90%D7%99%D7%A9%D7%99%20%D7%90%D7%95%20%D7%A4%D7%A8%D7%98%D7%99%5C%22%20%D7%91%D7%94%D7%92%D7%93%D7%A8%D7%95%D7%AA%20%D7%A1%D7%99%D7%A0%D7%95%D7%9F%20%5B%5B%D7%A6%D7%90%D7%98_AI_%D7%91%D7%A0%D7%98%D7%A4%D7%A8%D7%99%7C%D7%94%D7%99%D7%9B%D7%A0%D7%A1%D7%95%20%D7%9C%D7%9B%D7%90%D7%9F%20%D7%9C%D7%94%D7%A1%D7%91%D7%A8%20%D7%9E%D7%A4%D7%95%D7%A8%D7%98%5D%5D%22%2C%22noteSiteEn%22:%22For%20images%20on%20this%20website%20to%20work%20you%20need%20to%20set%20%5C%22Filter%20content%20that%20is%20known%20as%20personal%20or%20private%5C%22%20%5B%5BAI_Chats_in_NetFree%7CClick%20here%20to%20read%20more%5D%5D%22%7D"></script><script src="//netfree.link/injection-script/go-payment.js" type="text/javascript" async ></script>
+<script src="//netfree.link/injection-script/popup-card-init.js" type="text/javascript" async ></script>
